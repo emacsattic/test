@@ -25,12 +25,30 @@
 
 ;;; Usage
 
+;; Overview
+;;   This unit test framework is developed for testing operations on a buffer.
+;;   But it definitely can be used to test operations unrelated to buffers.
+;;   
+;;   For example, I write `my-buffer-substring'.  I also have a file and if it
+;;   is loaded into a buffer and run (my-buffer-substring 10 22) on that buffer,
+;;   it must return "hello, world".  To test it, I can write a test case with
+;;   this framework,
+;;   
+;;     (defun my-buffer-substring-setup ()
+;;       (insert-file-contents "my-file"))
+;;   
+;;     (defcase my-buffer-substring-test nil 'my-buffer-substring-setup
+;;       (test-assert-string-equal (my-buffer-substring 10 22) "hello, world"))
+;;   
+;;   And then run it by invoking 
+;;   `M-x test-run-one-case MY-BUFFER-SUBSTRING-TEST'.
+
 ;; To use this framework, add the following lines to your .emacs file
 ;;     (add-to-list 'load-path "/path/to/test/")
 ;;     (require 'test)
 
 ;; Write test cases
-;;   All cases are written with `defcase' macro.  For example,
+;;   Test case is written with `defcase' macro.  For example,
 ;;
 ;;     (defcase my-code-test nil nil
 ;;       (test-assert-ok (my-fun)))
@@ -43,7 +61,9 @@
 ;;   `test-assert-eq', `test-assert-string-equal', and `test-assert-memq'.
 ;;   You can write your own ones if they are not enough.  But make sure your
 ;;   assertion function name starts with `test-assert-'.  Otherwise, it is
-;;   NOT considered as an assertion.
+;;   NOT considered as an assertion.  And, if you want to have consistency
+;;   font lock effect, Add "#    " to the beginning of every line of your 
+;;   output.
 ;;
 ;;   Test cases can be grouped with tags so that you can run them with one 
 ;;   command.  To add tags to the previous test case,
@@ -81,9 +101,16 @@
 ;;   `M-x test-run-one-case CASE' runs one test case.
 ;;   `M-x test-run-all-cases' runs all test cases stored in `test-cases'.
 ;;   `M-x test-run-one-tag TAG' runs all test cases grouped by TAG.
-;;   `M-x test-run-tags TAGS' runs all test cases grouped by one of TAGS.
+;;   `(test-run-tags TAGS)' runs all test cases grouped by one of TAGS.
 ;;
-;;   Test result is shown in buffer `*test-result*'.
+;;   Test result, including detail error message and summary, is shown in
+;;   buffer `*test-result*'.
+;;   Every test case has a summary line to show how many cases pass and how
+;;   many cases fail.  There are also a summary line to show total number of
+;;   pass and failure for all commands except `test-run-one-case'.
+;;   Error message is helpful.  If assertion fails, `test-assert-ok' prints
+;;   evaluated form, `test-assert-eq' and `test-assert-equal' prints what is
+;;   got and what is expected, `test-assert-memq' prints what is not in what.
 
 ;;; Code
 
