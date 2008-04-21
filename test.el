@@ -1,4 +1,91 @@
-;;; Unit test framework for Emacs lisp program
+;;; test.el --- Unit test framework for Emacs lisp program
+;; Copyright (C) 2008 by Wang Liang
+
+;; Author: Wang Liang <netcasper@gmail.com>
+
+;; test.el is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation; either version 2, or (at your option)
+;; any later version.
+
+;; test.el is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with GNU Emacs; see the file COPYING.  If not, write to
+;; the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+;; Boston, MA 02111-1307, USA.
+
+;;; Download
+;;    Latest version is at http://www.wanglianghome.org/svn/test/test.el
+;;    You can check out with subversion.
+;;      $ svn co http://www.wanglianghome.org/svn/test/
+
+;;; Usage
+
+;; To use this framework, add the following lines to your .emacs file
+;;     (add-to-list 'load-path "/path/to/test/")
+;;     (require 'test)
+
+;; Write test cases
+;;   All cases are written with `defcase' macro.  For example,
+;;
+;;     (defcase my-code-test nil nil
+;;       (test-assert-ok (my-fun)))
+;;
+;;   This test case includes one assertion but no tags and no setup code.
+;;   It checks return value of `my-fun'.  If it's `nil', case fails.
+;;   Otherwise, case passes.  You can add more assertions into one case.
+;;
+;;   Currently we have four assertion functions.  They are `test-assert-ok',
+;;   `test-assert-eq', `test-assert-string-equal', and `test-assert-memq'.
+;;   You can write your own ones if they are not enough.  But make sure your
+;;   assertion function name starts with `test-assert-'.  Otherwise, it is
+;;   NOT considered as an assertion.
+;;
+;;   Test cases can be grouped with tags so that you can run them with one 
+;;   command.  To add tags to the previous test case,
+;;
+;;     (defcase my-code-test (my-lib-suite my-lib-sublib-suite) nil
+;;       (test-assert-ok (my-fun)))
+;;
+;;   All test cases are run in a temporary buffer.  You can setup buffer 
+;;   content by providing `setup' code.  For example,
+;;
+;;     (defun my-lib-setup ()
+;;       (insert-file-contents "my-input-filename")
+;;       (my-mode))
+;;
+;;     (defcase my-code-test (my-lib my-lib-sublib) 'my-lib-setup
+;;       (test-assert-ok (my-fun)))
+;;
+;;   You probably want to add a common tag to all your test case for a specific
+;;   library, and add a common setup code too.  So you can write your own macro
+;;   to make it easy to develop test cases.  For example,
+;;
+;;     (defmacro defmylibcase (case-name tags &rest body)
+;;       `(defcase ,case-name ,(append '(my-lib-suite) tags) 'my-lib-setup
+;;                 ,@body))
+;;
+;;   And then,
+;;
+;;     (defmylibcase my-code-test-2 (my-lib-sublib-suite)
+;;       (test-assert-ok (my-fun)))
+;;
+;;   You can check all test cases and all test tags by examining value of
+;;   `test-cases' and `test-tags'.
+
+;; Run test cases
+;;   `M-x test-run-one-case CASE' runs one test case.
+;;   `M-x test-run-all-cases' runs all test cases stored in `test-cases'.
+;;   `M-x test-run-one-tag TAG' runs all test cases grouped by TAG.
+;;   `M-x test-run-tags TAGS' runs all test cases grouped by one of TAGS.
+;;
+;;   Test result is shown in buffer `*test-result*'.
+
+;;; Code
 
 (require 'cl)
 
@@ -147,9 +234,17 @@
 	       (test-run-and-summarize (test-find-all-cases tags))))
 
 (defun test-run-one-case (case-name)
+  (interactive (list
+		(intern
+		 (funcall test-completing-read-function
+			  "Case name: "
+			  (mapcar 'symbol-name test-cases)
+			  nil
+			  t))))
   (test-report (test-run case-name)))
 
 (defun test-run-all-cases ()
+  (interactive)
   (test-report (test-run-and-summarize test-cases)))
 
 (defmacro test-motion-target (&rest body)
