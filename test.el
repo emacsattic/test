@@ -23,6 +23,9 @@
 ;;    You can check out with subversion.
 ;;      $ svn co http://www.wanglianghome.org/svn/test/
 
+;;; Screenshot
+;;    http://www.wanglianghome.org/svn/test/test/png
+
 ;;; Usage
 
 ;; Overview
@@ -116,6 +119,14 @@
 
 (require 'cl)
 
+(defvar test-version "0.2"
+  "test version")
+
+(defun test-version ()
+  "Show test version."
+  (interactive)
+  (message "test version %s" test-version))
+
 (defvar test-cases '()
   "All case in all tags")
 
@@ -145,7 +156,7 @@
 
 (defun test-report-error (test error)
   (princ "#  ")
-  (princ test)
+  (prin1 test)
   (princ "\n")
   (let* ((msg (error-message-string error))
 	 (from-here (string-equal
@@ -157,48 +168,50 @@
     (princ "\n"))
   (princ "#  \n"))
 
-(defun test-run-and-print (test)
-  (condition-case err
-      (progn
-	;; run
-	(eval test)
-	;; increase count of success if it's a test
-	(when (test-assert-p test)
-	  (incf succ)))
-    ;; increase count of failure and report error
-    (error (incf fail)
-	   (test-report-error test err))))
-
 (defmacro defcase (case-name tags setup &rest body)
-  `(progn
-     (if (and (listp ',tags)
-	      (or (null ',tags)
-		  (every 'symbolp ',tags)))
-	 (progn
-	   (put ',case-name 'tags ',tags)
-	   (dolist (tag ',tags)
-	     (when tag
-	       (add-to-list 'test-tags tag)
-	       (unless (boundp tag)
-		 (set tag '()))
-	       (add-to-list tag ',case-name))))
-       (error "Tags must be nil or a list of symbols."))
-     (put ',case-name 'cases
-	  (lambda ()
-	    (with-temp-buffer
-	      (when ,setup
-		(funcall ,setup))
-	      (let ((fail 0)
-		    (succ 0))
-		(dolist (test ',body)
-		  (test-run-and-print test))
-		(put ',case-name 'succ succ)
-		(put ',case-name 'fail fail)
-		(princ (format "%s: %d pass, %d fail."
-			       (symbol-name ',case-name)
-			       succ fail))
-		(princ "\n")))))
-     (add-to-list 'test-cases ',case-name)))
+  (let ((tag (gensym "--test--"))
+	(test (gensym "--test--"))
+	(fail (gensym "--test--"))
+	(succ (gensym "--test--"))
+	(err (gensym "--test--")))
+    `(progn
+       (if (and (listp ',tags)
+		(or (null ',tags)
+		    (every 'symbolp ',tags)))
+	   (progn
+	     (put ',case-name 'tags ',tags)
+	     (dolist (,tag ',tags)
+	       (when ,tag
+		 (add-to-list 'test-tags ,tag)
+		 (unless (boundp ,tag)
+		   (set ,tag '()))
+		 (add-to-list ,tag ',case-name))))
+	 (error "Tags must be nil or a list of symbols."))
+       (put ',case-name 'cases
+	    (lambda ()
+	      (with-temp-buffer
+		(when ,setup
+		  (funcall ,setup))
+		(let ((,fail 0)
+		      (,succ 0))
+		  (dolist (,test ',body)
+		    (condition-case ,err
+			(progn
+			  ;; run
+			  (eval ,test)
+			  ;; increase count of success if it's a test
+			  (when (test-assert-p ,test)
+			    (incf ,succ)))
+		      ;; increase count of failure and report error
+		      (error (incf ,fail)
+			     (test-report-error ,test ,err))))
+		  (put ',case-name 'succ ,succ)
+		  (put ',case-name 'fail ,fail)
+		  (princ (format "%s: %d pass, %d fail."
+				 (symbol-name ',case-name)
+				 ,succ ,fail))
+		  (princ "\n")))))
+       (add-to-list 'test-cases ',case-name))))
 
 (defun test-princ-current-time ()
   (princ "#  ")
@@ -280,16 +293,19 @@
     (point)))
 
 (defun test-assert-ok (form)
-  (assert form))
+  (assert form nil
+	  (with-output-to-string
+	    (princ "#    not ok: ")
+	    (prin1 form))))
 
 (defun test-assert-compare (fn got expected)
   (assert (funcall fn got expected)
 	  t
 	  (with-output-to-string
-	    (princ "#    Got: ")
+	    (princ "#    got: ")
 	    (prin1 got)
 	    (princ "\n")
-	    (princ "#    Expected: ")
+	    (princ "#    expected: ")
 	    (prin1 expected))))
 
 (defun test-assert-eq (got expected)
@@ -302,15 +318,21 @@
   (assert (memq object list)
 	  t
 	  (with-output-to-string
-	    (princ "#    ")
-	    (princ object)
-	    (princ " is not in ")
-	    (princ list))))
+	    (princ "#    got: ")
+	    (prin1 object)
+	    (princ "\n")
+	    (princ "#    not in: ")
+	    (prin1 list))))
 
 ;;; `test-result-mode'
 
 (defvar test-result-font-lock-keywords
-  `(("^#    .*$" . font-lock-warning-face)
+  `(("^\\(#    got: \\)\\(.*\\)$"
+     (1 font-lock-preprocessor-face) (2 font-lock-warning-face))
+    ("^\\(#    not ok: \\)\\(.*\\)$"
+     (1 font-lock-preprocessor-face) (2 font-lock-warning-face))
+    ("^\\(#    .*?: \\)\\(.*\\)$"
+     (1 font-lock-preprocessor-face) (2 font-lock-type-face))
     ;; be careful about the order
     ("^#  .*$" . font-lock-preprocessor-face)
     ("^\\(.*\\): \\([0-9]+\\) pass, \\([0-9]+\\) fail.$"
