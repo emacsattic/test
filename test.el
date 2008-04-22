@@ -24,7 +24,7 @@
 ;;      $ svn co http://www.wanglianghome.org/svn/test/
 
 ;;; Screenshot
-;;    http://www.wanglianghome.org/svn/test/test/png
+;;    http://www.wanglianghome.org/images/test.png
 
 ;;; Usage
 
@@ -134,6 +134,7 @@
   "All tags from all test cases")
 
 (defun test-completing-read (prompt choices dummy require-match)
+  "Use iswitchb completion functionality."
   (let ((iswitchb-make-buflist-hook
 	 (lambda ()
 	   (setq iswitchb-temp-buflist choices))))
@@ -146,6 +147,7 @@
   "Prefix of test-assert methods.")
 
 (defun test-assert-p (test)
+  "Return non-nil if TEST is an assertion."
   (let ((method-name (symbol-name (car test))))
     (string-equal
      test-assert-method-prefix
@@ -155,6 +157,7 @@
 		     (length method-name))))))
 
 (defun test-report-error (test error)
+  "Print form TEST and error message from ERROR."
   (princ "#  ")
   (prin1 test)
   (princ "\n")
@@ -169,6 +172,7 @@
   (princ "#  \n"))
 
 (defmacro defcase (case-name tags setup &rest body)
+  "Define test case which includes one or multiple assertions."
   (let ((tag (gensym "--test--"))
 	(test (gensym "--test--"))
 	(fail (gensym "--test--"))
@@ -214,11 +218,13 @@
        (add-to-list 'test-cases ',case-name))))
 
 (defun test-princ-current-time ()
+  "Print start time to run test cases."
   (princ "#  ")
   (princ (current-time-string))
   (princ "\n"))
 
 (defmacro test-report (&rest body)
+  "Show test report in buffer `*test-result*'."
   `(progn
      (with-output-to-temp-buffer "*test-result*"
        (test-princ-current-time)
@@ -227,10 +233,12 @@
        (test-result-mode))))
 
 (defun test-run (cases)
+  "Run test cases in CASES."
   (dolist (test-case (test-args-to-list cases))
     (funcall (get test-case 'cases))))
 
 (defun test-summarize (cases)
+  "Print pass/fail summary for all test cases in CASES."
   (let ((total-succ 0)
 	(total-fail 0))
     (dolist (test-case cases)
@@ -240,15 +248,19 @@
     (princ (format "Total: %d pass, %d fail." total-succ total-fail))))
 
 (defun test-run-and-summarize (cases)
+  "Run test cases in CASES and print summary."
   (test-run cases)
   (test-summarize cases))
 
 (defun test-args-to-list (args)
+  "Make sure ARGS is a list."
   (if (listp args)
       args
     (list args)))
 
 (defun test-find-all-cases (tags)
+  "Return all test cases grouped by TAGS.
+This function guarantees that no duplicated cases in return value."
   (let ((tag-list (test-args-to-list tags))
 	(cases '()))
     (dolist (tag tag-list)
@@ -257,6 +269,7 @@
     cases))
 
 (defun test-run-one-tag (tag-name)
+  "Run test cases grouped by tag TAG-NAME."
   (interactive (list
 		(intern
 		 (funcall test-completing-read-function
@@ -268,12 +281,14 @@
 	       (test-run-and-summarize (test-find-all-cases tag-name))))
 
 (defun test-run-tags (&rest tags)
+  "Run all test cases grouped by TAGS."
   (test-report (princ "#  Tags: ")
 	       (princ (mapconcat 'symbol-name tags " "))
 	       (princ "\n")
 	       (test-run-and-summarize (test-find-all-cases tags))))
 
 (defun test-run-one-case (case-name)
+  "Run one test case whose name is CASE-NAME."
   (interactive (list
 		(intern
 		 (funcall test-completing-read-function
@@ -284,21 +299,25 @@
   (test-report (test-run case-name)))
 
 (defun test-run-all-cases ()
+  "Run all test cases saved in TEST-CASES."
   (interactive)
   (test-report (test-run-and-summarize test-cases)))
 
 (defmacro test-motion-target (&rest body)
+  "Return position after motion."
   `(progn
      ,@body
     (point)))
 
 (defun test-assert-ok (form)
+  "Assert that FORM returns non-nil."
   (assert form nil
 	  (with-output-to-string
 	    (princ "#    not ok: ")
 	    (prin1 form))))
 
 (defun test-assert-compare (fn got expected)
+  "Used to construct other equal-like functions."
   (assert (funcall fn got expected)
 	  t
 	  (with-output-to-string
@@ -309,12 +328,15 @@
 	    (prin1 expected))))
 
 (defun test-assert-eq (got expected)
+  "Assert comparison between GOT and EXPECTED with `eq'."
   (test-assert-compare 'eq got expected))
 
 (defun test-assert-string-equal (got expected)
+  "Assert comparison between GOT and EXPECTED with `string-equal'."
   (test-assert-compare 'string-equal got expected))
 
 (defun test-assert-memq (object list)
+  "Assert OBJECT is in list LIST."
   (assert (memq object list)
 	  t
 	  (with-output-to-string
@@ -336,7 +358,8 @@
     ;; be careful about the order
     ("^#  .*$" . font-lock-preprocessor-face)
     ("^\\(.*\\): \\([0-9]+\\) pass, \\([0-9]+\\) fail.$"
-     (1 font-lock-function-name-face) (2 font-lock-type-face) (3 font-lock-warning-face))))
+     (1 font-lock-function-name-face) (2 font-lock-type-face) (3 font-lock-warning-face)))
+  "Font lock for `test-result-mode'.")
 
 (defconst test-result-font-lock-defaults
   '(test-result-font-lock-keywords t nil nil nil (font-lock-multiline . nil)))
