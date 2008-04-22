@@ -45,6 +45,8 @@
 ;;   
 ;;   And then run it by invoking 
 ;;   `M-x test-run-one-case MY-BUFFER-SUBSTRING-TEST'.
+;;
+;;   http://www.wanglianghome.org/svn/test/example.el is an example of usage.
 
 ;; To use this framework, add the following lines to your .emacs file
 ;;     (add-to-list 'load-path "/path/to/test/")
@@ -60,13 +62,17 @@
 ;;   It checks return value of `my-fun'.  If it's `nil', case fails.
 ;;   Otherwise, case passes.  You can add more assertions into one case.
 ;;
-;;   Currently we have four assertion functions.  They are `test-assert-ok',
-;;   `test-assert-eq', `test-assert-string-equal', and `test-assert-memq'.
-;;   You can write your own ones if they are not enough.  But make sure your
-;;   assertion function name starts with `test-assert-'.  Otherwise, it is
-;;   NOT considered as an assertion.  And, if you want to have consistency
-;;   font lock effect, Add "#    " to the beginning of every line of your 
-;;   output.
+;;   Assertion for binary comparison is much more flexible.  You can use
+;;   `test-assert-CMP' if `CMP' is a binary comparison function, either
+;;   provided by Emacs or written by you.  All those binary comparison
+;;   assertions fallback to `test-assert-compare' function so that I do not
+;;   need to write them as many as possible.
+;;
+;;   You can develop your own assertions by using "test-assert-extended-" as
+;;   function name prefix. For example You develop `test-assert-extended->'
+;;   to compare many numbers since `test-assert->' only compares two.  Inside
+;;   your own assertion function, you should use `assert' from `cl' package to
+;;   do real job.
 ;;
 ;;   Test cases can be grouped with tags so that you can run them with one 
 ;;   command.  To add tags to the previous test case,
@@ -112,14 +118,13 @@
 ;;   many cases fail.  There are also a summary line to show total number of
 ;;   pass and failure for all commands except `test-run-one-case'.
 ;;   Error message is helpful.  If assertion fails, `test-assert-ok' prints
-;;   evaluated form, `test-assert-eq' and `test-assert-equal' prints what is
-;;   got and what is expected, `test-assert-memq' prints what is not in what.
+;;   evaluated form, `test-assert-compare' prints what is got and why it failed.
 
 ;;; Code
 
 (require 'cl)
 
-(defvar test-version "0.2"
+(defvar test-version "0.4"
   "test version")
 
 (defun test-version ()
@@ -146,15 +151,27 @@
 (defvar test-assert-method-prefix "test-assert-"
   "Prefix of test-assert methods.")
 
+(defvar test-assert-extended-prefix "test-assert-extended-"
+  "Prefix of user-extended test-assert methods.")
+
 (defun test-assert-p (test)
   "Return non-nil if TEST is an assertion."
   (let ((method-name (symbol-name (car test))))
-    (string-equal
-     test-assert-method-prefix
-     (substring method-name
-		0
-		(min (length test-assert-method-prefix)
-		     (length method-name))))))
+    (string-equal test-assert-method-prefix
+		  (substring method-name
+			     0
+			     (min (length test-assert-method-prefix)
+				  (length method-name))))))
+
+(defun test-special-assert-p (test)
+  "Return non-nil if TEST is `test-assert-ok' or user-extended assertion."
+  (or (eq 'test-assert-ok (car test))
+      (let ((method-name (symbol-name (car test))))
+	(string-equal test-assert-extended-prefix
+		      (substring method-name
+				 0
+				 (min (length test-assert-extended-prefix)
+				      (length method-name)))))))
 
 (defun test-report-error (test error)
   "Print form TEST and error message from ERROR."
@@ -202,7 +219,18 @@
 		    (condition-case ,err
 			(progn
 			  ;; run
-			  (eval ,test)
+			  (if (test-special-assert-p ,test)
+			      (eval ,test)
+			    (test-assert-compare
+			     ;; binary comparison function
+			     (intern
+			      ;; remove prefix
+			      (substring (symbol-name (car ,test))
+					 (length test-assert-method-prefix)))
+			     ;; got
+			     (eval (cadr ,test))
+			     ;; expected
+			     (eval (caddr ,test))))
 			  ;; increase count of success if it's a test
 			  (when (test-assert-p ,test)
 			    (incf ,succ)))
@@ -324,27 +352,10 @@ This function guarantees that no duplicated cases in return value."
 	    (princ "#    got: ")
 	    (prin1 got)
 	    (princ "\n")
-	    (princ "#    expected: ")
+	    (princ "#    not ")
+	    (prin1 fn)
+	    (princ ": ")
 	    (prin1 expected))))
-
-(defun test-assert-eq (got expected)
-  "Assert comparison between GOT and EXPECTED with `eq'."
-  (test-assert-compare 'eq got expected))
-
-(defun test-assert-string-equal (got expected)
-  "Assert comparison between GOT and EXPECTED with `string-equal'."
-  (test-assert-compare 'string-equal got expected))
-
-(defun test-assert-memq (object list)
-  "Assert OBJECT is in list LIST."
-  (assert (memq object list)
-	  t
-	  (with-output-to-string
-	    (princ "#    got: ")
-	    (prin1 object)
-	    (princ "\n")
-	    (princ "#    not in: ")
-	    (prin1 list))))
 
 ;;; `test-result-mode'
 
