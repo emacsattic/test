@@ -62,11 +62,16 @@
 ;;   It checks return value of `my-fun'.  If it's `nil', case fails.
 ;;   Otherwise, case passes.  You can add more assertions into one case.
 ;;
-;;   Assertion for binary comparison is much more flexible.  You can use
-;;   `test-assert-CMP' if `CMP' is a binary comparison function, either
-;;   provided by Emacs or written by you.  All those binary comparison
-;;   assertions fallback to `test-assert-compare' function so that I do not
-;;   need to write them as many as possible.
+;;   Besides `test-assert-ok', `test-assert-key' is used to assert that a key
+;;   is bound to a function in a mode-map.  For example,
+;;     (test-assert-key example-mode-map (kbd "C-c C-c") 'example-function)
+;;
+;;   Assertion for binary comparison or prediction is much more flexible.
+;;   You can use `test-assert-CMP' if `CMP', either provided by Emacs or
+;;   written by you, accepts more than two parameters.  All those assertions
+;;   fallback to `test-assert-compare' function so that I do not need to write
+;;   them as many as possible.  Since `test-assert-compare' only considers 
+;;   first two parameters, others are ignored.
 ;;
 ;;   You can develop your own assertions by using "test-assert-extended-" as
 ;;   function name prefix. For example You develop `test-assert-extended->'
@@ -91,7 +96,7 @@
 ;;       (test-assert-ok (my-fun)))
 ;;
 ;;   You probably want to add a common tag to all your test case for a specific
-;;   library, and add a common setup code too.  So you can write your own macro
+;;   package, and add a common setup code too.  So you can write your own macro
 ;;   to make it easy to develop test cases.  For example,
 ;;
 ;;     (defmacro defmylibcase (case-name tags &rest body)
@@ -124,7 +129,7 @@
 
 (require 'cl)
 
-(defvar test-version "0.4"
+(defvar test-version "0.5"
   "test version")
 
 (defun test-version ()
@@ -137,6 +142,9 @@
 
 (defvar test-tags '()
   "All tags from all test cases")
+
+(defvar test-special-assertion-functions '(test-assert-ok test-assert-key)
+  "Assertion functions have to be run by `eval'.")
 
 (defun test-completing-read (prompt choices dummy require-match)
   "Use iswitchb completion functionality."
@@ -165,7 +173,7 @@
 
 (defun test-special-assert-p (test)
   "Return non-nil if TEST is `test-assert-ok' or user-extended assertion."
-  (or (eq 'test-assert-ok (car test))
+  (or (memq (car test) test-special-assertion-functions)
       (let ((method-name (symbol-name (car test))))
 	(string-equal test-assert-extended-prefix
 		      (substring method-name
@@ -219,7 +227,8 @@
 		    (condition-case ,err
 			(progn
 			  ;; run
-			  (if (test-special-assert-p ,test)
+			  (if (or (test-special-assert-p ,test)
+				  (not (test-assert-p ,test)))
 			      (eval ,test)
 			    (test-assert-compare
 			     ;; binary comparison function
@@ -337,6 +346,7 @@ This function guarantees that no duplicated cases in return value."
      ,@body
     (point)))
 
+;;; Special assertions
 (defun test-assert-ok (form)
   "Assert that FORM returns non-nil."
   (assert form nil
@@ -344,6 +354,19 @@ This function guarantees that no duplicated cases in return value."
 	    (princ "#    not ok: ")
 	    (prin1 form))))
 
+(defun test-assert-key (mode-map kbd function)
+  "Assert that KBD is binding to FUNCTION in MODE-MAP."
+  (let ((got (lookup-key mode-map kbd)))
+    (assert (eq got function)
+	    t
+	    (with-output-to-string
+	      (princ "#    got: ")
+	      (prin1 got)
+	      (princ "\n")
+	      (princ "#    not bound to: ")
+	      (prin1 function)))))
+
+;;; Assertion for binary comparison or prediction.
 (defun test-assert-compare (fn got expected)
   "Used to construct other equal-like functions."
   (assert (funcall fn got expected)
