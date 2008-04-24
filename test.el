@@ -108,8 +108,6 @@
 ;;     (defmylibcase my-code-test-2 (my-lib-sublib-suite)
 ;;       (test-assert-ok (my-fun)))
 ;;
-;;   You can check all test cases and all test tags by examining value of
-;;   `test-cases' and `test-tags'.
 
 ;; Run test cases
 ;;   `M-x test-run-one-case CASE' runs one test case.
@@ -130,7 +128,7 @@
 
 (require 'cl)
 
-(defvar test-version "0.6"
+(defvar test-version "0.7"
   "test version")
 
 (defun test-version ()
@@ -138,10 +136,10 @@
   (interactive)
   (message "test version %s" test-version))
 
-(defvar test-cases '()
+(defvar test-cases (make-hash-table)
   "All case in all tags")
 
-(defvar test-tags '()
+(defvar test-tags (make-hash-table)
   "All tags from all test cases")
 
 (defvar test-special-assertion-functions '(test-assert-ok test-assert-key)
@@ -200,68 +198,66 @@
 (defmacro defcase (case-name tags setup &rest body)
   "Define test case which includes one or multiple assertions."
   (let ((tag (gensym "--test--"))
-	(test (gensym "--test--"))
+	(tag-cases (gensym "--test--"))
 	(fail (gensym "--test--"))
 	(succ (gensym "--test--"))
 	(err (gensym "--test--")))
     `(progn
-       (add-to-list 'test-cases ',case-name)
        ;; check during expansion or evaluation?
        (if (and (listp ',tags)
 		(or (null ',tags)
 		    (every 'symbolp ',tags)))
 	   (progn
-	     (put ',case-name 'tags ',tags)
 	     (dolist (,tag ',tags)
 	       (when ,tag
-		 (add-to-list 'test-tags ,tag)
-		 (unless (boundp ,tag)
-		   (set ,tag '()))
-		 (add-to-list ,tag ',case-name))))
+		 (let ((,tag-cases (gethash ,tag test-tags '())))
+		   (add-to-list ',tag-cases ',case-name)
+		   (puthash ,tag ,tag-cases test-tags)))))
 	 (error "Tags must be nil or a list of symbols."))
-       (put ',case-name 'cases
-	    (lambda ()
-	      (with-temp-buffer
-		(when ,setup
-		  (funcall ,setup))
-		(let ((,fail 0)
-		      (,succ 0))
-		  ,@(mapcar
-		     (lambda (arg)
-		       (cond ((not (test-assert-p arg))
-			      `(condition-case ,err
-				   ;; do not count as success
-				   ,arg
-				 (error (incf ,fail) ; but count as failure
-					(test-report-error ',arg ,err))))
-			     ((test-special-assert-p arg)
-			      `(condition-case ,err
-				   (progn
-				     ,arg
-				     (incf ,succ))
-				 (error (incf ,fail)
-					(test-report-error ',arg ,err))))
-			     (t
-			      `(condition-case ,err
-				   (progn
-				     (test-assert-binary-relation
-				      ;; function to test binary relation
-				      ',(intern
-					 (substring
-					  (symbol-name (car arg))
-					  (length test-assert-method-prefix)))
-				      ;; parameters to above function
-				      ,@(cdr arg)))
-				 (error (incf ,fail)
-					(test-report-error ',arg ,err))))))
-		     body)
-		  ;; summarize
-		  (put ',case-name 'succ ,succ)
-		  (put ',case-name 'fail ,fail)
-		  (princ (format "%s: %d pass, %d fail."
-				 (symbol-name ',case-name)
-				 ,succ ,fail))
-		  (princ "\n"))))))))
+       (puthash ',case-name
+		(lambda ()
+		  (let ((,fail 0)
+			(,succ 0))
+		    (with-temp-buffer
+		      (when ,setup
+			(funcall ,setup))		
+		      ;; run
+		      ,@(mapcar
+			 (lambda (arg)
+			   (cond ((not (test-assert-p arg))
+				  `(condition-case ,err
+				       ;; do not count as success
+				       ,arg
+				     (error (incf ,fail) ; but count as failure
+					    (test-report-error ',arg ,err))))
+				 ((test-special-assert-p arg)
+				  `(condition-case ,err
+				       (progn
+					 ,arg
+					 (incf ,succ))
+				     (error (incf ,fail)
+					    (test-report-error ',arg ,err))))
+				 (t
+				  `(condition-case ,err
+				       (progn
+					 (test-assert-binary-relation
+					  ;; function to test binary relation
+					  ',(intern
+					     (substring
+					      (symbol-name (car arg))
+					      (length test-assert-method-prefix)))
+					  ;; parameters to above function
+					  ,@(cdr arg)))
+				     (error (incf ,fail)
+					    (test-report-error ',arg ,err))))))
+			 body)
+		      ;; summarize
+		      (princ (format "%s: %d pass, %d fail."
+				     (symbol-name ',case-name)
+				     ,succ ,fail))
+		      (princ "\n"))
+		    (list ,succ ,fail)))
+		test-cases))))
 
 (defun test-princ-current-time ()
   "Print start time to run test cases."
@@ -280,23 +276,19 @@
 
 (defun test-run (cases)
   "Run test cases in CASES."
-  (dolist (test-case (test-args-to-list cases))
-    (funcall (get test-case 'cases))))
-
-(defun test-summarize (cases)
-  "Print pass/fail summary for all test cases in CASES."
-  (let ((total-succ 0)
-	(total-fail 0))
-    (dolist (test-case cases)
-      (incf total-succ (get test-case 'succ))
-      (incf total-fail (get test-case 'fail)))
-    (princ "#  ")
-    (princ (format "Total: %d pass, %d fail." total-succ total-fail))))
+  (dolist (case-name (test-args-to-list cases))
+    (funcall (gethash case-name test-cases))))
 
 (defun test-run-and-summarize (cases)
   "Run test cases in CASES and print summary."
-  (test-run cases)
-  (test-summarize cases))
+  (let ((total-succ 0)
+	(total-fail 0))
+    (dolist (case-name (test-args-to-list cases))
+      (let ((summary (funcall (gethash case-name test-cases))))
+	(incf total-succ (car summary))
+	(incf total-fail (cadr summary))))
+    (princ "#  ")
+    (princ (format "Total: %d pass, %d fail." total-succ total-fail))))
 
 (defun test-args-to-list (args)
   "Make sure ARGS is a list."
@@ -310,19 +302,44 @@ This function guarantees that no duplicated cases in return value."
   (let ((tag-list (test-args-to-list tags))
 	(cases '()))
     (dolist (tag tag-list)
-      (dolist (test-case (symbol-value tag))
+      (dolist (test-case (gethash tag test-tags))
 	(add-to-list 'cases test-case)))
     cases))
 
+(defun test-maphashkey (fn hashtable)
+  "Call FN on each key of hash table HASHTABLE and return a list of result."
+  (let ((keys '()))
+    (maphash (lambda (key value)
+	       (add-to-list 'keys (funcall fn key)))
+	     hashtable)
+    keys))
+
+(defun test-find-all-case-names (&optional tag)
+  "Return all case names, or name of cases grouped by TAG if TAG is non-nil, as a list."
+  (if tag
+      (mapcar 'symbol-name (test-find-all-cases tag))
+    (test-maphashkey 'symbol-name test-cases)))
+
+(defun test-find-all-tag-names ()
+  "Return all tag names as a list."
+  (test-maphashkey 'symbol-name test-tags))
+
+(defun test-completing-read-one (prompt choice)
+  "Read a string and return a symbol whose name is the string being read."
+  ;; Better to read a tag symbol directly.
+  (intern (funcall test-completing-read-function prompt choice nil t)))
+
+(defun test-completing-read-one-tag ()
+  "Read a tag name and return corresponding tag symbol."
+  (test-completing-read-one "Tag: " (test-find-all-tag-names)))
+
+(defun test-completing-read-one-case (&optional tag)
+  "Read a case name and return corresponding case symbol. If TAG is non-nil, only cases grouped by it is allowed."
+  (test-completing-read-one "Case name: " (test-find-all-case-names tag)))
+
 (defun test-run-one-tag (tag-name)
   "Run test cases grouped by tag TAG-NAME."
-  (interactive (list
-		(intern
-		 (funcall test-completing-read-function
-			  "Tag: "
-			  (mapcar 'symbol-name test-tags)
-			  nil
-			  t))))
+  (interactive (list (test-completing-read-one-tag)))
   (test-report (princ "#  Tag: ") (princ tag-name) (princ "\n")
 	       (test-run-and-summarize (test-find-all-cases tag-name))))
 
@@ -335,19 +352,13 @@ This function guarantees that no duplicated cases in return value."
 
 (defun test-run-one-case (case-name)
   "Run one test case whose name is CASE-NAME."
-  (interactive (list
-		(intern
-		 (funcall test-completing-read-function
-			  "Case name: "
-			  (mapcar 'symbol-name test-cases)
-			  nil
-			  t))))
+  (interactive (list (test-completing-read-one-case)))
   (test-report (test-run case-name)))
 
 (defun test-run-all-cases ()
   "Run all test cases saved in TEST-CASES."
   (interactive)
-  (test-report (test-run-and-summarize test-cases)))
+  (test-report (test-run-and-summarize (test-maphashkey 'identity test-cases))))
 
 (defmacro test-motion-target (&rest body)
   "Return position after motion."
