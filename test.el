@@ -69,9 +69,9 @@
 ;;   Assertion for binary comparison or prediction is much more flexible.
 ;;   You can use `test-assert-CMP' if `CMP', either provided by Emacs or
 ;;   written by you, accepts more than two parameters.  All those assertions
-;;   fallback to `test-assert-compare' function so that I do not need to write
-;;   them as many as possible.  Since `test-assert-compare' only considers 
-;;   first two parameters, others are ignored.
+;;   fallback to `test-assert-binary-relation' function so that I do not need
+;;   to write them as many as possible.  Since `test-assert-binary-relation'
+;;   only considers first two parameters, others are ignored.
 ;;
 ;;   You can develop your own assertions by using "test-assert-extended-" as
 ;;   function name prefix. For example You develop `test-assert-extended->'
@@ -123,13 +123,14 @@
 ;;   many cases fail.  There are also a summary line to show total number of
 ;;   pass and failure for all commands except `test-run-one-case'.
 ;;   Error message is helpful.  If assertion fails, `test-assert-ok' prints
-;;   evaluated form, `test-assert-compare' prints what is got and why it failed.
+;;   evaluated form, `test-assert-binary-relation' prints what is got and why
+;;   it failed.
 
 ;;; Code
 
 (require 'cl)
 
-(defvar test-version "0.5"
+(defvar test-version "0.6"
   "test version")
 
 (defun test-version ()
@@ -144,7 +145,7 @@
   "All tags from all test cases")
 
 (defvar test-special-assertion-functions '(test-assert-ok test-assert-key)
-  "Assertion functions have to be run by `eval'.")
+  "Assertion functions must not fallback to `test-assert-binary-relation'.")
 
 (defun test-completing-read (prompt choices dummy require-match)
   "Use iswitchb completion functionality."
@@ -204,6 +205,8 @@
 	(succ (gensym "--test--"))
 	(err (gensym "--test--")))
     `(progn
+       (add-to-list 'test-cases ',case-name)
+       ;; check during expansion or evaluation?
        (if (and (listp ',tags)
 		(or (null ',tags)
 		    (every 'symbolp ',tags)))
@@ -223,36 +226,42 @@
 		  (funcall ,setup))
 		(let ((,fail 0)
 		      (,succ 0))
-		  (dolist (,test ',body)
-		    (condition-case ,err
-			(progn
-			  ;; run
-			  (if (or (test-special-assert-p ,test)
-				  (not (test-assert-p ,test)))
-			      (eval ,test)
-			    (test-assert-compare
-			     ;; binary comparison function
-			     (intern
-			      ;; remove prefix
-			      (substring (symbol-name (car ,test))
-					 (length test-assert-method-prefix)))
-			     ;; got
-			     (eval (cadr ,test))
-			     ;; expected
-			     (eval (caddr ,test))))
-			  ;; increase count of success if it's a test
-			  (when (test-assert-p ,test)
-			    (incf ,succ)))
-		      ;; increase count of failure and report error
-		      (error (incf ,fail)
-			     (test-report-error ,test ,err))))
+		  ,@(mapcar
+		     (lambda (arg)
+		       (cond ((not (test-assert-p arg))
+			      `(condition-case ,err
+				   ;; do not count as success
+				   ,arg
+				 (error (incf ,fail) ; but count as failure
+					(test-report-error ',arg ,err))))
+			     ((test-special-assert-p arg)
+			      `(condition-case ,err
+				   (progn
+				     ,arg
+				     (incf ,succ))
+				 (error (incf ,fail)
+					(test-report-error ',arg ,err))))
+			     (t
+			      `(condition-case ,err
+				   (progn
+				     (test-assert-binary-relation
+				      ;; function to test binary relation
+				      ',(intern
+					 (substring
+					  (symbol-name (car arg))
+					  (length test-assert-method-prefix)))
+				      ;; parameters to above function
+				      ,@(cdr arg)))
+				 (error (incf ,fail)
+					(test-report-error ',arg ,err))))))
+		     body)
+		  ;; summarize
 		  (put ',case-name 'succ ,succ)
 		  (put ',case-name 'fail ,fail)
 		  (princ (format "%s: %d pass, %d fail."
 				 (symbol-name ',case-name)
 				 ,succ ,fail))
-		  (princ "\n")))))
-       (add-to-list 'test-cases ',case-name))))
+		  (princ "\n"))))))))
 
 (defun test-princ-current-time ()
   "Print start time to run test cases."
@@ -367,8 +376,8 @@ This function guarantees that no duplicated cases in return value."
 	      (prin1 function)))))
 
 ;;; Assertion for binary comparison or prediction.
-(defun test-assert-compare (fn got expected)
-  "Used to construct other equal-like functions."
+(defun test-assert-binary-relation (fn got expected)
+  "Fallback function to assert all binary relation between GOT and EXPECTED with FN."
   (assert (funcall fn got expected)
 	  t
 	  (with-output-to-string
