@@ -1,0 +1,12 @@
+-*- mode: org; -*-
+
+#+TAGS: Bug(b) Internal(i) Feature(f)
+#+SEQ_TODO: TODO STARTED WAITING DONE
+#+STARTUP: lognotestate
+
+* Tasks
+** TODO Use hash table for variable test-cases and test-tags	      :Internal:
+   SCHEDULED: <2008-04-24 四>
+   - State "TODO"       [2008-04-24 四 11:42] \\
+     Do not attach internal implementation information to symbol.
+     Use hash table instead.
