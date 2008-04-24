@@ -12,3 +12,8 @@
    - State "TODO"       [2008-04-24 四 11:42] \\
      Do not attach internal implementation information to symbol.
      Use hash table instead.
+** DONE Pass count is not increased for test-assert-binary-relation.	   :Bug:
+   SCHEDULED: <2008-04-24 四>
+   - State "DONE"       [2008-04-24 四 14:58]
+   - State "TODO"       [2008-04-24 四 14:58] \\
+     Increase version to 0.8

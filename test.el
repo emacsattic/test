@@ -128,7 +128,7 @@
 
 (require 'cl)
 
-(defvar test-version "0.7"
+(defvar test-version "0.8"
   "test version")
 
 (defun test-version ()
@@ -247,7 +247,8 @@
 					      (symbol-name (car arg))
 					      (length test-assert-method-prefix)))
 					  ;; parameters to above function
-					  ,@(cdr arg)))
+					  ,@(cdr arg))
+					 (incf ,succ))
 				     (error (incf ,fail)
 					    (test-report-error ',arg ,err))))))
 			 body)
