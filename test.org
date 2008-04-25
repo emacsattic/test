@@ -17,3 +17,13 @@
    - State "DONE"       [2008-04-24 四 14:58]
    - State "TODO"       [2008-04-24 四 14:58] \\
      Increase version to 0.8
+** DONE Write test-gensym to wrap gensym			      :Internal:
+   SCHEDULED: <2008-04-25 五>
+   - State "DONE"       [2008-04-25 五 09:51]
+   - State "TODO"       [2008-04-25 五 09:36] \\
+     Eliminate duplicated "--test--" parameter to gensym.
+** DONE Define test-version with defconst, instead of defvar	      :Internal:
+   SCHEDULED: <2008-04-25 五>
+   - State "DONE"       [2008-04-25 五 09:47]
+   - State "TODO"       [2008-04-25 五 09:42] \\
+     Just as emacs-version.

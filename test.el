@@ -128,7 +128,7 @@
 
 (require 'cl)
 
-(defvar test-version "0.8"
+(defconst test-version "0.9"
   "test version")
 
 (defun test-version ()
@@ -195,25 +195,35 @@
     (princ "\n"))
   (princ "#  \n"))
 
+(defun test-gensym (&optional prefix)
+  "Generate uninterned symbol.
+If PREFIX is non-nil, use it as prefix.  Otherwise, use \"--test--\"."
+  (gensym (or prefix "--test--")))
+
 (defmacro defcase (case-name tags setup &rest body)
   "Define test case which includes one or multiple assertions."
-  (let ((tag (gensym "--test--"))
-	(tag-cases (gensym "--test--"))
-	(fail (gensym "--test--"))
-	(succ (gensym "--test--"))
-	(err (gensym "--test--")))
+  (let ((tag (test-gensym))
+	(tag-cases (test-gensym))
+	(fail (test-gensym))
+	(succ (test-gensym))
+	(err (test-gensym)))
     `(progn
-       ;; check during expansion or evaluation?
-       (if (and (listp ',tags)
-		(or (null ',tags)
-		    (every 'symbolp ',tags)))
-	   (progn
-	     (dolist (,tag ',tags)
-	       (when ,tag
-		 (let ((,tag-cases (gethash ,tag test-tags '())))
-		   (add-to-list ',tag-cases ',case-name)
-		   (puthash ,tag ,tag-cases test-tags)))))
-	 (error "Tags must be nil or a list of symbols."))
+       (assert (and (listp ',tags)
+		     (or (null ',tags)
+			 (every 'symbolp ',tags)))
+	       ;; `show-args' can not be `t' since `assert' will
+	       ;; evaluate EVERY parameter of `and'.  This breaks
+	       ;; short-circuit effect of `and'.
+	       nil
+		"Tags must be nil or a list of symbols.")
+       ;; Associate case with every tag, and push tags into hash table.
+       (dolist (,tag ',tags)
+	 (when ,tag
+	   (let ((,tag-cases (gethash ,tag test-tags '())))
+	     (add-to-list ',tag-cases ',case-name)
+	     (puthash ,tag ,tag-cases test-tags))))
+       ;; Push function, which runs test case and returns `(pass-count
+       ;; fail-count)', into hash table.
        (puthash ',case-name
 		(lambda ()
 		  (let ((,fail 0)
@@ -221,7 +231,7 @@
 		    (with-temp-buffer
 		      (when ,setup
 			(funcall ,setup))		
-		      ;; run
+		      ;; transform `body' of macro during expansion time.
 		      ,@(mapcar
 			 (lambda (arg)
 			   (cond ((not (test-assert-p arg))
@@ -257,6 +267,7 @@
 				     (symbol-name ',case-name)
 				     ,succ ,fail))
 		      (princ "\n"))
+		    ;; return value
 		    (list ,succ ,fail)))
 		test-cases))))
 
