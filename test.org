@@ -1,6 +1,6 @@
 -*- mode: org; -*-
 
-#+TAGS: Bug(b) Internal(i) Feature(f)
+#+TAGS: Bug(b) Internal(i) Feature(f) Manual(m)
 #+SEQ_TODO: TODO STARTED WAITING DONE
 #+STARTUP: lognotestate
 
@@ -27,3 +27,7 @@
    - State "DONE"       [2008-04-25 五 09:47]
    - State "TODO"       [2008-04-25 五 09:42] \\
      Just as emacs-version.
+** TODO Write a plan to write manual					:Manual:
+   SCHEDULED: <2008-04-28 一>
+   - State "TODO"       [2008-04-25 五 14:05] \\
+     Write manual in this file.
