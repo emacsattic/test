@@ -31,3 +31,10 @@
    SCHEDULED: <2008-04-28 一>
    - State "TODO"       [2008-04-25 五 14:05] \\
      Write manual in this file.
+** TODO Run test case in batch mode		:Feature:
+   SCHEDULED: <2008-04-28 一>
+     - State "TODO"       [2008-04-27 日 20:48] \\
+       Print message to stdout.
+** TODO Compile test package
+   SCHEDULED: <2008-04-28 一>
+     - State "TODO"       [2008-04-27 日 20:48]
