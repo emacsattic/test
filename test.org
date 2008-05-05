@@ -27,14 +27,25 @@
    - State "DONE"       [2008-04-25 五 09:47]
    - State "TODO"       [2008-04-25 五 09:42] \\
      Just as emacs-version.
-** TODO Write a plan to write manual					:Manual:
+** DONE Write a plan to write manual					:Manual:
    SCHEDULED: <2008-04-28 一>
+   - State "DONE"       [2008-05-05 一 14:06]
+   - State "STARTED"    [2008-05-05 一 14:06] \\
+     A simple tutorial based on example.el
+     A tutorial for a major mode
+     Reference Manual
+     Internals
    - State "TODO"       [2008-04-25 五 14:05] \\
      Write manual in this file.
+** TODO A simple tutorial based on example.el				:Manual:
+   SCHEDULED: <2008-05-10 六>
+   - State "TODO"       [2008-05-05 一 14:07]
 ** TODO Run test case in batch mode		:Feature:
-   SCHEDULED: <2008-04-28 一>
+   SCHEDULED: <2008-05-10 六>
      - State "TODO"       [2008-04-27 日 20:48] \\
        Print message to stdout.
-** TODO Compile test package
+** DONE Compile test package
    SCHEDULED: <2008-04-28 一>
+   - State "DONE"       [2008-04-28 一 10:59] \\
+     Successful to compile example.el.
      - State "TODO"       [2008-04-27 日 20:48]
