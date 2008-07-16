@@ -4,6 +4,113 @@
 #+SEQ_TODO: TODO STARTED WAITING DONE
 #+STARTUP: lognotestate
 
+* Tutorial
+** Setup
+The package can be downloaded at
+http://www.wanglianghome.org/svn/test/test.el or checked out with
+subversion
+
+  : $ svn co http://www.wanglianghome.org/svn/test/
+
+And then load this package interactively with =M-x load-file=.
+
+** Simple example
+After loading =test.el=, we can create test cases with it.  Copy the
+following pretty simple test case into buffer =*scratch*=.
+
+#+BEGIN_EXAMPLE
+(defcase example-1-test-1 nil nil
+  (test-assert-ok t))
+#+END_EXAMPLE
+
+The name of this test case is =example-1-test-1=.  Every case must
+have a name so that we can run it individually.  Let's forget two nils
+after name now.
+
+This test case has only one assertion in its body.  =test-assert-ok=
+asserts its parameter is non-nil.
+
+Then put cursor into the body of this expression and press =M-x C-M-x=
+to install it.
+
+To run this case, use =M-x test-run-one-case= and input the case's
+name.  You will get a buffer, whose name is =*test-result*=, to
+summarize test result.  For this case, you should get something like
+"1 pass, 0 fail".
+
+** Test functions
+Let's test the return value of a function now.  First create a
+function.  For example,
+
+#+BEGIN_EXAMPLE
+(defun example-1-t () nil)
+#+END_EXAMPLE
+
+We want to make sure that this function returns non-nil value.  Then
+we write test case like,
+
+#+BEGIN_EXAMPLE
+(defcase example-1-test-2 nil nil
+  (test-assert-ok (example-1-t)))
+#+END_EXAMPLE
+
+After install and run this case as previous example, you will get an
+assertion failure since our function returns nil.
+
+** More assertions in one test case
+One test case can have more than one assertions.  So we can actually
+merge previous two test cases into one.
+
+#+BEGIN_EXAMPLE
+(defcase example-1-test-3 nil nil
+  (test-assert-ok t)
+  (test-assert-ok (example-1-t)))
+#+END_EXAMPLE
+
+** More assertion utilities
+We have more than =test-assert-ok= for you.  For example,
+test-assert-= can be used to assert that two integers must be equal,
+and =test-assert-string-equal= for string.  Here is an example.
+
+#+BEGIN_EXAMPLE
+(defun add2 (n) (+ 3 n))
+
+(defun say () "hello, world")
+
+(defcase example-2-test-1 nil nil
+  (test-assert-= (add2 2) 4)
+  (test-assert-string-equal (say) "hello, test"))
+#+END_EXAMPLE
+
+For this kind of binary predication, your test candidate should be the
+first parameter and desired result second.  I intentionally make both
+assertions fail just for showing you the helpful error message in test
+result buffer.
+
+Actually, you can assert with any existing binary predication by just
+appending =test-assert-= before it.  So for =memq=, you get
+=test-assert-memq=.
+
+** Tag test case
+Sometimes you want to run multiple test cases at once.  To be able to
+do that, test cases should be tagged.  For example,
+
+#+BEGIN_EXAMPLE
+(defcase example-1-test-3 (tutorial-suite) nil
+  (test-assert-ok t)
+  (test-assert-ok (example-1-t)))
+
+(defcase example-2-test-1 (tutorial-suite) nil
+  (test-assert-= (add2 2) 4)
+  (test-assert-string-equal (say) "hello, test"))
+#+END_EXAMPLE
+
+Here, we replace the first nil after name of test case with a list of
+tags.  For our example, there is only one tag.  To run them at once,
+use =M-x test-run-one-tag=.
+
+One test case can be associated with multiple tags.
+
 * Tasks
 ** DONE Use hash table for variable test-cases and test-tags	      :Internal:
    SCHEDULED: <2008-04-24 四>
@@ -37,11 +144,13 @@
      Internals
    - State "TODO"       [2008-04-25 五 14:05] \\
      Write manual in this file.
-** TODO A simple tutorial based on example.el				:Manual:
-   SCHEDULED: <2008-05-10 六>
+** DONE A simple tutorial based on example.el				:Manual:
+   SCHEDULED: <2008-07-16 三>
+   - State "DONE"       [2008-07-16 三 15:37] \\
+     Not a complete reference or manual.  Just a simple tutorial.
    - State "TODO"       [2008-05-05 一 14:07]
 ** TODO Run test case in batch mode		:Feature:
-   SCHEDULED: <2008-05-10 六>
+   SCHEDULED: <2008-07-16 三>
      - State "TODO"       [2008-04-27 日 20:48] \\
        Print message to stdout.
 ** DONE Compile test package
