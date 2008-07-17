@@ -1,5 +1,6 @@
 -*- mode: org; -*-
 
+#+TITLE: test.el: unit test framework for elisp 
 #+TAGS: Bug(b) Internal(i) Feature(f) Manual(m)
 #+SEQ_TODO: TODO STARTED WAITING DONE
 #+STARTUP: lognotestate
@@ -30,8 +31,8 @@ after name now.
 This test case has only one assertion in its body.  =test-assert-ok=
 asserts its parameter is non-nil.
 
-Then put cursor into the body of this expression and press =M-x C-M-x=
-to install it.
+Then put cursor into the body of this expression and press =C-M-x= to
+install it.
 
 To run this case, use =M-x test-run-one-case= and input the case's
 name.  You will get a buffer, whose name is =*test-result*=, to
@@ -69,7 +70,7 @@ merge previous two test cases into one.
 
 ** More assertion utilities
 We have more than =test-assert-ok= for you.  For example,
-test-assert-= can be used to assert that two integers must be equal,
+=test-assert-== can be used to assert that two integers must be equal,
 and =test-assert-string-equal= for string.  Here is an example.
 
 #+BEGIN_EXAMPLE
