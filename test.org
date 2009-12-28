@@ -2,7 +2,7 @@
 
 #+TITLE: test.el: unit test framework for elisp 
 #+TAGS: Bug(b) Internal(i) Feature(f) Manual(m)
-#+SEQ_TODO: TODO STARTED WAITING DONE
+#+SEQ_TODO: TODO STARTED WAITING | DONE CANCELED
 #+STARTUP: lognotestate
 
 * Tutorial
@@ -150,8 +150,10 @@ One test case can be associated with multiple tags.
    - State "DONE"       [2008-07-16 三 15:37] \\
      Not a complete reference or manual.  Just a simple tutorial.
    - State "TODO"       [2008-05-05 一 14:07]
-** TODO Run test case in batch mode		:Feature:
-   SCHEDULED: <2008-07-16 三>
+** CANCELED Run test case in batch mode				       :Feature:
+   SCHEDULED: <2008-09-02 二>
+   - State "CANCELED"   [2008-09-04 四 13:29] \\
+     It makes more sense to run it from within Emacs.
      - State "TODO"       [2008-04-27 日 20:48] \\
        Print message to stdout.
 ** DONE Compile test package
